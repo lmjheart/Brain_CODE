@@ -37,21 +37,22 @@ const App: React.FC = () => {
   const cardRef = useRef<HTMLDivElement>(null);
   const cardAreaRef = useRef<HTMLDivElement>(null);
 
-  // 결과 카드 생성 시 자동 스크롤
   useEffect(() => {
     if (showCard && cardAreaRef.current) {
       setTimeout(() => {
         cardAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 400);
+      }, 500);
     }
   }, [showCard]);
 
   const calculateResult = () => {
+    // 이미 진행 중이면 중복 실행 방지
     if (step === 'LOADING' || step === 'RESULT') return;
 
-    // 모든 답변이 완료되었는지 확인 (방어적 코드)
-    if (answers.some(ans => ans === null)) {
-      alert("모든 문항에 답변해주세요.");
+    // 모든 답변이 채워졌는지 최종 확인
+    const completedAnswers = answers.filter(a => a !== null);
+    if (completedAnswers.length < QUESTIONS.length) {
+      alert("모든 문항에 답변을 완료해주세요!");
       return;
     }
 
@@ -76,7 +77,7 @@ const App: React.FC = () => {
     setStep('LOADING');
     setTimeout(() => {
       setStep('RESULT');
-      window.scrollTo(0, 0);
+      window.scrollTo({ top: 0, behavior: 'instant' });
     }, 2000);
   };
 
@@ -85,6 +86,7 @@ const App: React.FC = () => {
     newAnswers[currentQuestionIdx] = type;
     setAnswers(newAnswers);
     
+    // 마지막 문제가 아닐 때만 다음으로 이동
     if (currentQuestionIdx < QUESTIONS.length - 1) {
       setTimeout(() => setCurrentQuestionIdx(prev => prev + 1), 300);
     }
@@ -109,14 +111,12 @@ const App: React.FC = () => {
     
     try {
       const element = cardRef.current;
-      // 캡처 최적화 설정
       const canvas = await html2canvas(element, {
-        scale: 3, // 고해상도 출력
+        scale: 3,
         useCORS: true,
         logging: false,
         backgroundColor: "#ffffff",
         onclone: (clonedDoc) => {
-          // 캡처용 복제 문서에서 스타일 강제 조정 (긴 텍스트 대응)
           const target = clonedDoc.querySelector('.limitless-card-container') as HTMLElement;
           if (target) {
             target.style.height = 'auto';
@@ -131,8 +131,8 @@ const App: React.FC = () => {
       link.href = canvas.toDataURL('image/png', 1.0);
       link.click();
     } catch (err) {
-      console.error("Capture Error:", err);
-      alert('이미지 생성 중 오류가 발생했습니다.');
+      console.error(err);
+      alert('이미지 저장 중 오류가 발생했습니다.');
     } finally {
       setIsCapturing(false);
     }
@@ -148,8 +148,8 @@ const App: React.FC = () => {
     setShowCard(false);
   };
 
-  // 퀴즈 렌더링용 변수 (오류 방지 핵심)
-  const currentQuestion = step === 'QUIZ' ? QUESTIONS[currentQuestionIdx] : null;
+  // 렌더링 직전에 현재 질문 유효성 검사 (reading 'text' 오류 방지)
+  const currentQuestion = step === 'QUIZ' && QUESTIONS[currentQuestionIdx] ? QUESTIONS[currentQuestionIdx] : null;
 
   return (
     <div className="max-w-md mx-auto min-h-screen flex flex-col bg-white shadow-2xl relative overflow-x-hidden font-['Pretendard']">
@@ -271,11 +271,11 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* [요청] 2. 커리어 성공 로드맵 */}
+              {/* 2. 커리어 성공 로드맵 */}
               <div className="bg-indigo-50 rounded-[2.5rem] p-9 border border-indigo-100 shadow-inner">
                 <h3 className="text-xl font-black text-indigo-900 mb-8 flex items-center gap-3"><Briefcase size={22} /> 커리어 성공 로드맵</h3>
                 <div className="grid grid-cols-1 gap-4">
-                  <p className="text-sm font-bold text-indigo-700/70 mb-2 leading-relaxed break-keep">이 유형은 아래 분야에서 최고의 잠재력을 발휘합니다.</p>
+                  <p className="text-sm font-bold text-indigo-700/70 mb-2 leading-relaxed break-keep">이 유형은 아래 분야에서 가장 강력한 역량을 발휘합니다.</p>
                   <div className="flex flex-wrap gap-2">
                     {diagnosticData.primary.successCareers.map((job, idx) => (
                       <span key={idx} className="px-4 py-2.5 bg-white rounded-xl text-sm font-black text-indigo-600 shadow-sm border border-indigo-100">
@@ -286,34 +286,32 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* [요청] 3. 베스트 시너지 관계 */}
+              {/* 3. 베스트 시너지 관계 */}
               <div className="bg-white rounded-[2.5rem] p-9 shadow-xl border border-gray-100 overflow-hidden relative">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-full -mr-16 -mt-16 opacity-50" />
                 <h3 className="text-xl font-black text-gray-800 mb-8 flex items-center gap-3"><Users2 size={22} className="text-indigo-600" /> 베스트 시너지 관계</h3>
-                
                 <div className="flex items-center gap-6 mb-8">
                   <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-black shadow-lg" style={{ backgroundColor: diagnosticData.primary.color }}>
                     {diagnosticData.primary.name.charAt(4)}
                   </div>
-                  <ArrowRightLeft size={24} className="text-gray-300 animate-pulse" />
+                  <ArrowRightLeft size={24} className="text-gray-300" />
                   <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-black shadow-lg" style={{ backgroundColor: BRAIN_TYPE_DETAILS[diagnosticData.primary.chemistry.partnerType].color }}>
                     {BRAIN_TYPE_DETAILS[diagnosticData.primary.chemistry.partnerType].name.charAt(4)}
                   </div>
                 </div>
-
                 <div className="space-y-4">
                   <h4 className="text-lg font-black text-gray-900 flex items-center gap-2">
                     <span className="text-indigo-600">[{diagnosticData.primary.chemistry.synergy}]</span>
                   </h4>
                   <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
                     <p className="text-[14px] font-bold text-gray-600 leading-relaxed break-keep">
-                      <span className="text-indigo-600 font-black">{diagnosticData.primary.name}</span>와 <span className="font-black" style={{ color: BRAIN_TYPE_DETAILS[diagnosticData.primary.chemistry.partnerType].color }}>{diagnosticData.primary.chemistry.partner}</span>는 서로를 완성하는 최고의 조합입니다. {diagnosticData.primary.chemistry.description}
+                      <span className="text-indigo-600 font-black">{diagnosticData.primary.name}</span>와 <span className="font-black" style={{ color: BRAIN_TYPE_DETAILS[diagnosticData.primary.chemistry.partnerType].color }}>{diagnosticData.primary.chemistry.partner}</span>는 환상의 콤비입니다. {diagnosticData.primary.chemistry.description}
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* [요청] 4. 브레인 마스터 전략 */}
+              {/* 4. 브레인 마스터 전략 */}
               <div className="bg-white rounded-[2.5rem] p-9 shadow-xl border border-gray-100">
                 <h3 className="text-2xl font-black text-gray-800 mb-12 text-center underline decoration-indigo-100 decoration-8 underline-offset-[-2px]">브레인 마스터 전략</h3>
                 <div className="space-y-14">
@@ -327,10 +325,8 @@ const App: React.FC = () => {
               <div className="bg-slate-950 rounded-[3rem] p-9 text-white text-center shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent" />
                 <div className="w-16 h-16 bg-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl rotate-3"><Edit3 size={32} /></div>
-                
                 <h3 className="text-2xl font-black mb-3">마지막 몰입을 위한<br/>하나의 다짐</h3>
-                <p className="text-slate-500 text-xs mb-8 italic">"생각을 문장으로 새길 때 변화가 시작됩니다."</p>
-
+                <p className="text-slate-500 text-xs mb-8 italic">"생각을 문장으로 옮길 때 변화는 이미 시작되었습니다."</p>
                 <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-8 text-left relative overflow-hidden group">
                   <div className="flex items-center gap-2 mb-2 text-yellow-400">
                     <Lightbulb size={16} className="animate-pulse" />
@@ -339,18 +335,13 @@ const App: React.FC = () => {
                   <p className="text-[14px] font-bold text-slate-200 leading-relaxed break-keep">
                     {diagnosticData.primary.recommendedAction}
                   </p>
-                  <div className="absolute -bottom-2 -right-2 opacity-5 text-white transform rotate-12">
-                     <Award size={80} />
-                  </div>
                 </div>
-
                 <textarea 
                   value={customCommitment} 
                   onChange={(e) => setCustomCommitment(e.target.value)} 
                   placeholder="예: 매일 아침 일어나자마자 가장 중요한 일 하나를 즉시 실행하겠다!" 
                   className="w-full h-36 px-6 py-5 rounded-3xl bg-white/5 border border-white/10 text-white font-bold outline-none focus:border-indigo-500 mb-8 resize-none placeholder-slate-700 text-lg transition-all"
                 />
-
                 <button 
                   onClick={handleFinalCommitment}
                   disabled={isProcessing}
@@ -358,7 +349,7 @@ const App: React.FC = () => {
                     isProcessing ? 'bg-indigo-800 opacity-70' : 'bg-indigo-600 hover:bg-indigo-500'
                   }`}
                 >
-                  {isProcessing ? '선언서 각인 중...' : '선언서 카드 발급'} <Sparkles size={24} className={isProcessing ? 'animate-spin' : ''} />
+                  {isProcessing ? '선언서 각인 중...' : '선언서 카드 발급'} <Sparkles size={24} />
                 </button>
               </div>
 
@@ -372,12 +363,10 @@ const App: React.FC = () => {
                     className="flex flex-col items-center pt-16 border-t-2 border-dashed border-gray-200"
                   >
                     <div className="inline-block px-4 py-1.5 bg-yellow-400 text-black rounded-full text-[10px] font-black uppercase mb-8 shadow-lg shadow-yellow-100">Certificate of Limitless Brain</div>
-                    
                     <DeclarationCard userName={userName} typeInfo={diagnosticData.primary} customCommitment={customCommitment} cardRef={cardRef} />
-                    
                     <div className="w-full mt-16 px-4 space-y-4">
                       <Button fullWidth size="lg" onClick={saveAsImage} disabled={isCapturing} className="h-20 text-xl shadow-2xl bg-indigo-600 group">
-                        {isCapturing ? <RefreshCw size={24} className="animate-spin mr-3" /> : <Download size={24} className="mr-3 group-hover:animate-bounce" />}
+                        {isCapturing ? <RefreshCw size={24} className="animate-spin mr-3" /> : <Download size={24} className="mr-3" />}
                         {isCapturing ? '이미지 생성 중...' : '마스터리 선언서 저장하기'}
                       </Button>
                       <button onClick={resetTest} className="w-full py-6 text-gray-400 font-bold text-sm flex items-center justify-center gap-2 hover:text-indigo-600 transition-colors">
